@@ -1,0 +1,57 @@
+use crate::core::{ Uri, uri::UriType };
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Literal {
+    pub value: String,
+    pub datatype: Uri,
+    pub language: Option<String>,
+}
+
+impl ToString for Literal {
+    fn to_string(&self) -> String {
+        if let Some(language) = &self.language {
+            format!("{}^^{}@{}", self.value, self.datatype.to_string(), language)
+        } else {
+            format!("{}^^{}", self.value, self.datatype.to_string())
+        }
+    }
+}
+
+impl From<&str> for Literal {
+    fn from(l: &str) -> Self {
+        Literal {
+            value: l.into(),
+            datatype: Uri {
+                prefix: "xsd:".into(),
+                name: "string".into(),
+                uri_type: UriType::Prefixed
+            },
+            language: None
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Object {
+    Literal(Literal),
+    Resource(Uri)
+}
+
+impl ToString for Object {
+    fn to_string(&self) -> String {
+        match &self {
+            Object::Literal(literal) => literal.to_string(),
+            Object::Resource(resource) => resource.to_string()
+        }
+    }
+}
+
+pub mod matches {
+    use regex::Regex;
+    use lazy_static::lazy_static;
+
+    lazy_static! {
+        pub static ref WITH_DATATYPE: Regex = Regex::new(r"(.+)\^\^(.+)").unwrap();
+        pub static ref WITH_LANG: Regex = Regex::new(r"(.+)@(.{2,5})$").unwrap();
+    }
+}
