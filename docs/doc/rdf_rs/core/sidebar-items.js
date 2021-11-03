@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["Object",""]],"struct":[["Graph",""],["Literal",""],["Relationship",""],["Resource",""],["Triple","An RDF triple. Typically constructed from a ([`Resource`], [`Relationship`], [`Object`]) tuple with `.into()`."],["Uri",""]]});
