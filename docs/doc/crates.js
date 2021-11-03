@@ -1,1 +1,1 @@
-window.ALL_CRATES = ["aho_corasick","if_chain","lazy_static","memchr","rdf_rs","regex","regex_syntax"];
+window.ALL_CRATES = ["rdf_rs"];

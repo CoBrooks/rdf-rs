@@ -2,7 +2,8 @@
 
 This crate provides the tools necessary to parse RDF graphs. It currently contains a
 full (with very few exceptions) [`Turtle`](http://www.w3.org/TR/turtle/) parser that can parse arbitrary 
-URIs, Triples, and Graphs (see [`TurtleParser`](crate::parsing::TurtleParser) for example usage).
+URIs, Triples, and Graphs (see [`TurtleParser`](https://cobrooks.github.io/rdf-rs/doc/rdf_rs/parsing/struct.TurtleParser.html)
+for example usage).
 
 # Goals
 
@@ -20,5 +21,7 @@ the following:
 rdf-rs = { git = "https://github.com/CoBrooks/rdf-rs" }
 ```
 
-[`TurtleParser`]: crate::parsing::TurtleParser
+# Documentation
+
+Documentation for the rdf-rs crate is hosted [here](https://cobrooks.github.io/rdf-rs/doc/rdf_rs/index.html) using Github Pages.
 
