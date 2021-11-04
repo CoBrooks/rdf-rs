@@ -170,3 +170,12 @@ fn can_parse_literals() -> TestReturn {
     Ok(())
 }
 
+#[test]
+fn can_parse_owl_file() -> TestReturn {
+    let graph = TurtleParser::from_file("owl")?;
+    dbg!(&graph);
+    
+    assert!(false);
+    Ok(())
+}
+

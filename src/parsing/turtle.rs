@@ -9,10 +9,19 @@ use crate::parsing::base::{
     ParserError
 };
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, PartialEq)]
 enum Keyword {
     Prefix,
     Base
+}
+
+impl std::fmt::Debug for Keyword {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &self {
+            Keyword::Base => write!(f, "@base"),
+            Keyword::Prefix => write!(f, "@prefix"),
+        }
+    }
 }
 
 #[derive(Clone, PartialEq)]
@@ -27,6 +36,18 @@ enum Token {
     PropertyListClose,
     CollectionOpen,
     CollectionClose,
+}
+
+impl Token {
+    pub fn vec_to_string(tokens: Vec<Token>) -> String {
+        let mut s = String::new();
+        
+        for t in tokens.iter().filter(|&t| t != &Token::Whitespace) {
+            s += &format!("{:?} ", t);
+        }
+
+        s
+    }
 }
 
 impl std::fmt::Debug for Token {
@@ -50,15 +71,25 @@ pub struct TurtleParser;
 impl TurtleParser {
     // A very simple lexer to tokenize rdf input for later parsing
     fn tokenize(s: &str) -> Vec<Token> {
+        let s = s.replace("\r\n", "\n");
+
         let chars: Vec<char> = s.chars().collect();
 
         let mut tokens: Vec<Token> = Vec::new();
         let mut current: String = String::new();
         
         let mut quoted = false;
+
+        let mut sequential_quotes = 0;
+        let mut block_quoted = false;
+
+        let mut commented = false;
+
         for c in chars {
+            let ignored = quoted || block_quoted || commented;
+
             match c {
-                c if (c.is_whitespace() || c == ',') && !quoted => {
+                c if (c.is_whitespace() || c == ',') && !ignored => {
                     if !current.is_empty() {
                         match &current as &str {
                             "@prefix" | "PREFIX" => {
@@ -80,29 +111,59 @@ impl TurtleParser {
                     } else {
                         tokens.push(Token::Whitespace);
                     }
+
+                    sequential_quotes = 0;
                 },
-                '.' if current.is_empty() && !quoted => {
+                '.' if current.is_empty() && !ignored => {
                     tokens.push(Token::TripleSep);
+
+                    sequential_quotes = 0;
                 },
-                ';' if current.is_empty() && !quoted => {
+                ';' if current.is_empty() && !ignored => {
                     tokens.push(Token::PredicateSep);
+
+                    sequential_quotes = 0;
                 },
-                '[' if current.is_empty() && !quoted => {
+                '[' if current.is_empty() && !ignored => {
                     tokens.push(Token::PropertyListOpen);
+
+                    sequential_quotes = 0;
                 },
-                ']' if current.is_empty() && !quoted => {
+                ']' if current.is_empty() && !ignored => {
                     tokens.push(Token::PropertyListClose);
+
+                    sequential_quotes = 0;
                 },
-                '(' if current.is_empty() && !quoted => {
+                '(' if current.is_empty() && !ignored => {
                     tokens.push(Token::CollectionOpen);
+
+                    sequential_quotes = 0;
                 },
-                ')' if current.is_empty() && !quoted => {
+                ')' if current.is_empty() && !ignored => {
                     tokens.push(Token::CollectionClose);
+
+                    sequential_quotes = 0;
                 },
-                _ => { 
-                    if c == '"' { quoted = !quoted; }
-                    current += &c.to_string();
+                '#' if current.is_empty() && !ignored => {
+                    commented = true;
+                },
+                '\n' if ignored => {
+                    commented = false;
                 }
+                _ if !commented => { 
+                    if c == '"' { 
+                        quoted = !quoted;
+
+                        sequential_quotes += 1;
+                        if sequential_quotes == 3 {
+                            block_quoted = !block_quoted;
+                            sequential_quotes = 0;
+                            quoted = false;
+                        }
+                    }
+                    current.push(c);
+                },
+                _ => { }
             }
         }
 
@@ -186,7 +247,7 @@ impl TurtleParser {
                     triples.push(
                        (Self::resource(&subject)?, Self::relationship(&predicate)?, Self::object(&object)?).into()
                     );
-                    
+
                     // If this is the end of the triple,
                     if let Token::TripleSep = &tokens[3] {
                         // return the triples.
@@ -548,9 +609,12 @@ impl RDFParser for TurtleParser {
                 });
         }
 
-        // Split the input string on 'decimal then newline' 
-        // and filter on the lines that don't start with '@' (metadata)
-        let full_triples: Vec<&str> = g.split_inclusive(".\n").filter(|t| !t.starts_with('@')).collect();
+        let full_triples: Vec<String> = tokens.as_slice()
+            .split_inclusive(|t| t == &Token::TripleSep)
+            .map(|tokens| Token::vec_to_string(tokens.to_vec()))
+            .filter(|triple| !(triple.starts_with("@base") || triple.starts_with("@prefix") || triple.is_empty()))
+            .collect();
+
         let triples: Vec<Triple> = full_triples.into_iter().flat_map(|t| {
             // Trim leading and trainling whitespace
             Self::triple(t.trim()).unwrap()
