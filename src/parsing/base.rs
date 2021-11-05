@@ -18,7 +18,7 @@ impl<T: Error> From<T> for ParserError {
 
 pub type Parsed<T> = Result<T, ParserError>;
 
-pub trait RDFParser {
+pub trait BaseParser {
     fn uri(u: &str) -> Parsed<Uri>;
     fn resource(r: &str) -> Parsed<Resource>;
     fn relationship(r: &str) -> Parsed<Relationship>;

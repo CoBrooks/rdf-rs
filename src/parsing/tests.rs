@@ -2,7 +2,8 @@
 use std::collections::HashMap;
 use crate::core::*;
 use crate::core::uri::UriType;
-use crate::parsing::{ RDFParser, TurtleParser, ParserError };
+use crate::parsing::{ BaseParser, TurtleParser, ParserError };
+use crate::reasoning::{ BaseReasoner, RDFSReasoner };
 
 type TestReturn = Result<(), ParserError>;
 
@@ -167,15 +168,6 @@ fn can_parse_literals() -> TestReturn {
         .collect();
     assert_eq!(literals, expected_literals);
 
-    Ok(())
-}
-
-#[test]
-fn can_parse_owl_file() -> TestReturn {
-    let graph = TurtleParser::from_file("owl")?;
-    dbg!(&graph);
-    
-    assert!(false);
     Ok(())
 }
 

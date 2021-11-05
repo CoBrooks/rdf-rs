@@ -17,6 +17,37 @@ pub struct Triple {
 }
 
 impl Triple {
+    pub fn matches_pattern(&self, other: &Triple) -> bool {
+        let (Resource(s), Relationship(p), o) = self.clone().into();
+        let (Resource(pattern_s), Relationship(pattern_p), pattern_o) = other.clone().into();
+
+        if pattern_s.uri_type == UriType::BlankNode || s == pattern_s {
+            if pattern_p.uri_type == UriType::BlankNode || p == pattern_p {
+                if let Object::Literal(o) = o {
+                    if let Object::Literal(pattern_o) = pattern_o {
+                        o == pattern_o
+                    } else {
+                        false
+                    }
+                } else if let Object::Resource(pattern_o) = pattern_o {
+                    if pattern_o.uri_type == UriType::BlankNode {
+                        true
+                    } else if let Object::Resource(o) = o {
+                        o == pattern_o
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                }
+            } else {
+                false
+            }
+        } else {
+            false
+        }
+    }
+
     pub(crate) fn apply_graph_prefixes(&mut self, base: &str, prefixes: &HashMap<String, String>) {
         let Resource(subject_uri) = &mut self.subject;
         if subject_uri.uri_type == UriType::PrefixedWithBase || subject_uri.uri_type == UriType::Relative {

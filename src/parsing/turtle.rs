@@ -5,7 +5,7 @@ use if_chain::if_chain;
 use crate::core::*;
 use crate::parsing::base::{
     Parsed,
-    RDFParser,
+    BaseParser,
     ParserError
 };
 
@@ -350,7 +350,7 @@ impl TurtleParser {
     }
 }
 
-impl RDFParser for TurtleParser {
+impl BaseParser for TurtleParser {
     /// Parses a [`Uri`] from a string
     ///
     /// # Errors

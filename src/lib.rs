@@ -45,9 +45,23 @@ pub mod parsing {
     mod base;
     mod turtle;
 
-    pub use base::{ ParserError, Parsed, RDFParser };
+    pub use base::{ ParserError, Parsed, BaseParser };
     pub use turtle::TurtleParser;
+
+    mod tests;
 }
 
-mod tests;
+/// Contains the currently-implemented reasoner and a base
+/// [`RDFReasoner`](crate::reasoning::RDFReasoner) trait allowing their creation.
+pub mod reasoning {
+    mod base;
+    mod entailment;
+    mod rdfs;
+
+    pub use base::BaseReasoner;
+    pub use entailment::Entailment;
+    pub use rdfs::RDFSReasoner;
+
+    mod tests;
+}
 
