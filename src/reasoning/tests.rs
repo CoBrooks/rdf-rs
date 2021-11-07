@@ -43,13 +43,18 @@ fn rdfs_reasoning() -> TestReturn {
         assert_eq!(new_triples, expected_triple);
     }
     
-    // rdfs4
+    // rdfs4a and rdfs4b
     {
         let triple = TurtleParser::triple("_:x _:a _:y .")?;
-        let rdfs4 = &entailment_rules[3];
-        assert!(rdfs4.verify(&triple));
 
-        let new_triples = rdfs4.apply(&triple);
+        let rdfs4a = &entailment_rules[3];
+        assert!(rdfs4a.verify(&triple));
+
+        let rdfs4b = &entailment_rules[4];
+        assert!(rdfs4b.verify(&triple));
+
+        let mut new_triples = rdfs4a.apply(&triple);
+        new_triples.append(&mut rdfs4b.apply(&triple));
         let expected_triples = TurtleParser::graph("_:x rdf:type rdfs:Resource . _:y rdf:type rdfs:Resource .")?.triples;
         assert_eq!(new_triples, expected_triples);
     }
@@ -57,7 +62,7 @@ fn rdfs_reasoning() -> TestReturn {
     // rdfs5
     {
         let triples = TurtleParser::graph("_:x rdfs:subPropertyOf _:y . _:y rdfs:subPropertyOf _:z .")?.triples;
-        let rdfs5 = &entailment_rules[4];
+        let rdfs5 = &entailment_rules[5];
         assert!(rdfs5.verify(&triples));
 
         let new_triple = rdfs5.apply(&triples);
@@ -68,7 +73,7 @@ fn rdfs_reasoning() -> TestReturn {
     // rdfs6
     {
         let triple = TurtleParser::triple("_:x rdf:type rdf:Property .")?;
-        let rdfs6 = &entailment_rules[5];
+        let rdfs6 = &entailment_rules[6];
         assert!(rdfs6.verify(&triple));
 
         let new_triple = rdfs6.apply(&triple);
@@ -79,7 +84,7 @@ fn rdfs_reasoning() -> TestReturn {
     // rdfs7
     {
         let triples = TurtleParser::graph("_:a rdfs:subPropertyOf _:b . _:x _:a _:y .")?.triples;
-        let rdfs7 = &entailment_rules[6];
+        let rdfs7 = &entailment_rules[7];
         assert!(rdfs7.verify(&triples));
 
         let new_triple = rdfs7.apply(&triples);
@@ -90,7 +95,7 @@ fn rdfs_reasoning() -> TestReturn {
     // rdfs8
     {
         let triple = TurtleParser::triple("_:x rdf:type rdfs:Class .")?;
-        let rdfs8 = &entailment_rules[7];
+        let rdfs8 = &entailment_rules[8];
         assert!(rdfs8.verify(&triple));
 
         let new_triple = rdfs8.apply(&triple);
@@ -101,7 +106,7 @@ fn rdfs_reasoning() -> TestReturn {
     // rdfs9
     {
         let triples = TurtleParser::graph("_:x rdfs:subClassOf _:y . _:z rdf:type _:x .")?.triples;
-        let rdfs9 = &entailment_rules[8];
+        let rdfs9 = &entailment_rules[9];
         assert!(rdfs9.verify(&triples));
 
         let new_triple = rdfs9.apply(&triples);
@@ -112,7 +117,7 @@ fn rdfs_reasoning() -> TestReturn {
     // rdfs10
     {
         let triple = TurtleParser::triple("_:x rdf:type rdfs:Class .")?;
-        let rdfs10 = &entailment_rules[9];
+        let rdfs10 = &entailment_rules[10];
         assert!(rdfs10.verify(&triple));
 
         let new_triple = rdfs10.apply(&triple);
@@ -123,7 +128,7 @@ fn rdfs_reasoning() -> TestReturn {
     // rdfs11
     {
         let triples = TurtleParser::graph("_:x rdfs:subClassOf _:y . _:y rdfs:subClassOf _:z .")?.triples;
-        let rdfs11 = &entailment_rules[10];
+        let rdfs11 = &entailment_rules[11];
         assert!(rdfs11.verify(&triples));
 
         let new_triple = rdfs11.apply(&triples);
@@ -134,7 +139,7 @@ fn rdfs_reasoning() -> TestReturn {
     // rdfs12
     {
         let triple = TurtleParser::triple("_:x rdf:type rdfs:ContainerMembershipProperty .")?;
-        let rdfs12 = &entailment_rules[11];
+        let rdfs12 = &entailment_rules[12];
         assert!(rdfs12.verify(&triple));
 
         let new_triple = rdfs12.apply(&triple);
@@ -145,7 +150,7 @@ fn rdfs_reasoning() -> TestReturn {
     // rdfs13
     {
         let triple = TurtleParser::triple("_:x rdf:type rdfs:Datatype .")?;
-        let rdfs13 = &entailment_rules[12];
+        let rdfs13 = &entailment_rules[13];
         assert!(rdfs13.verify(&triple));
 
         let new_triple = rdfs13.apply(&triple);
@@ -162,10 +167,17 @@ fn can_apply_entailment_to_graph() -> TestReturn {
                                         rdfs:range foaf:Organization .
                                     ex:John ex:employer ex:Company .")?;
 
-    let inferred = RDFSReasoner::get_inferred_triples(graph.triples, 1);
-    dbg!(inferred);
+    let inferred = RDFSReasoner::get_inferred_triples(graph.triples, 2);
 
-    assert!(false);
+    let expected_triples = TurtleParser::graph("ex:Company rdf:type foaf:Organization ;\
+                                                    rdf:type rdfs:Resource .\
+                                                ex:John rdf:type foaf:Person ;\
+                                                    rdf:type rdfs:Resource .\
+                                                ex:employer rdf:type rdfs:Resource .\
+                                                foaf:Organization rdf:type rdfs:Resource .\
+                                                foaf:Person rdf:type rdfs:Resource .\
+                                               ")?.triples;
+    assert_eq!(inferred, expected_triples);
 
     Ok(())
 }
