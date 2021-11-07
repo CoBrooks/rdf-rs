@@ -158,13 +158,13 @@ fn can_parse_literals() -> TestReturn {
     assert_eq!(triples.len(), 3);
 
     let expected_literals = vec![
-        Literal { value: "\"a literal\"".to_string(), datatype: TurtleParser::uri("xsd:string")?, language: Some("en".to_string()) },
+        Literal { value: "\"a literal\"".to_string(), datatype: TurtleParser::uri("rdf:langString")?, language: Some("en".to_string()) },
         Literal { value: "\"-5\"".to_string(), datatype: TurtleParser::uri("xsd:integer")?, language: None },
         Literal { value: "true".to_string(), datatype: TurtleParser::uri("xsd:boolean")?, language: None },
     ];
 
     let literals: Vec<Literal> = triples.into_iter()
-        .map(|t| if let Object::Literal(object) = &t.object { object.clone() } else { panic!("Object is not a literal") })
+        .map(|t| t.object.literal().expect("Object was not a literal.").clone())
         .collect();
     assert_eq!(literals, expected_literals);
 

@@ -493,7 +493,7 @@ impl BaseParser for TurtleParser {
             let caps = with_lang.captures(o).unwrap();
             Ok(Object::Literal(Literal{
                 value: caps[1].to_string(),
-                datatype: Self::uri("xsd:string")?,
+                datatype: Self::uri("rdf:langString")?,
                 language: Some(caps[2].to_string())
             }))
         // If o is a valid URI

@@ -1,5 +1,5 @@
 use crate::reasoning::{ BaseReasoner, Entailment };
-use crate::core::{ Resource, Relationship, Object, Triple };
+use crate::core::Triple;
 use crate::parsing::{ BaseParser, TurtleParser };
 
 pub struct RDFSReasoner;
@@ -13,17 +13,14 @@ impl BaseReasoner for RDFSReasoner {
             output_length: 2,
             input_pattern: Box::new(
                 |triples: &Vec<Triple>| {
-                    if let Object::Literal(_) = &triples[0].object {
-                        true
-                    } else {
-                        false
-                    }
+                    triples[0].object.is_literal()
                 }
             ),
             output_pattern: Box::new(
                 |triples: &Vec<Triple>| {
-                    let (Resource(subject), Relationship(predicate), _) = &triples[0].clone().into();
-                    let object = if let Object::Literal(l) = &triples[0].object { l } else { panic!() };
+                    let subject = &triples[0].subject;
+                    let predicate = &triples[0].predicate;
+                    let object = &triples[0].object.literal().unwrap();
 
                     TurtleParser::triple(&format!("{} {} [ rdf:type {} ] .",
                         subject.to_string(), predicate.to_string(), object.datatype.to_string()
@@ -37,19 +34,21 @@ impl BaseReasoner for RDFSReasoner {
             output_length: 1,
             input_pattern: Box::new(
                 |triples: &Vec<Triple>| {
-                    let Relationship(predicate_a) = &triples[0].predicate;
-                    let Relationship(predicate_b) = &triples[1].predicate;
+                    let predicate_a = &triples[0].predicate;
+                    let predicate_b = &triples[1].predicate;
 
-                    if &predicate_a.to_string() == "rdfs:domain" {
-                        let Resource(subject) = &triples[0].subject;
-                        let Relationship(predicate) = &triples[1].predicate;
+                    if predicate_a.to_string() == "rdfs:domain" {
+                        let subject_a = &triples[0].subject;
+                        let object_a = &triples[0].object;
 
-                        predicate.to_string() == subject.to_string()
-                    } else if &predicate_b.to_string() == "rdfs:domain" {
-                        let Resource(subject) = &triples[1].subject;
-                        let Relationship(predicate) = &triples[0].predicate;
+                        predicate_b.to_string() == subject_a.to_string() &&
+                            object_a.is_resource()
+                    } else if predicate_b.to_string() == "rdfs:domain" {
+                        let subject_b = &triples[1].subject;
+                        let object_b = &triples[1].object;
 
-                        predicate.to_string() == subject.to_string()
+                        predicate_a.to_string() == subject_b.to_string() &&
+                            object_b.is_resource()
                     } else {
                         false
                     }
@@ -57,12 +56,25 @@ impl BaseReasoner for RDFSReasoner {
             ),
             output_pattern: Box::new(
                 |triples: &Vec<Triple>| {
-                    if let Object::Resource(object) = &triples[0].object {
-                        let Resource(subject) = &triples[1].subject;
+                    let predicate_a = &triples[0].predicate;
+                    let predicate_b = &triples[1].predicate;
 
-                        TurtleParser::triple(&format!("{} rdf:type {} .", subject.to_string(), object.to_string())).unwrap()
+                    if predicate_a.to_string() == "rdfs:domain" {
+                        let subject_b = &triples[1].subject;
+                        let object_a = &triples[0].object.resource().unwrap();
+
+                        TurtleParser::triple(&format!("{} rdf:type {} .", 
+                            subject_b.to_string(), object_a.to_string()
+                        )).unwrap()
+                    } else if predicate_b.to_string() == "rdfs:domain" {
+                        let subject_a = &triples[0].subject;
+                        let object_b = &triples[1].object.resource().unwrap();
+
+                        TurtleParser::triple(&format!("{} rdf:type {} .", 
+                            subject_a.to_string(), object_b.to_string()
+                        )).unwrap()
                     } else {
-                        Vec::new()
+                        panic!("Invalid entailment.")
                     }
                 }
             )
@@ -73,19 +85,21 @@ impl BaseReasoner for RDFSReasoner {
             output_length: 1,
             input_pattern: Box::new(
                 |triples: &Vec<Triple>| {
-                    let Relationship(predicate_a) = &triples[0].predicate;
-                    let Relationship(predicate_b) = &triples[1].predicate;
+                    let predicate_a = &triples[0].predicate;
+                    let predicate_b = &triples[1].predicate;
 
-                    if &predicate_a.to_string() == "rdfs:range" {
-                        let Resource(subject) = &triples[0].subject;
-                        let Relationship(predicate) = &triples[1].predicate;
+                    if predicate_a.to_string() == "rdfs:range" {
+                        let subject_a = &triples[0].subject;
+                        let object_a = &triples[0].object;
 
-                        predicate.to_string() == subject.to_string()
-                    } else if &predicate_b.to_string() == "rdfs:range" {
-                        let Resource(subject) = &triples[1].subject;
-                        let Relationship(predicate) = &triples[0].predicate;
+                        predicate_b.to_string() == subject_a.to_string() &&
+                            object_a.is_resource()
+                    } else if predicate_b.to_string() == "rdfs:range" {
+                        let subject_b = &triples[1].subject;
+                        let object_b = &triples[1].object;
 
-                        predicate.to_string() == subject.to_string()
+                        predicate_a.to_string() == subject_b.to_string() &&
+                            object_b.is_resource()
                     } else {
                         false
                     }
@@ -93,14 +107,25 @@ impl BaseReasoner for RDFSReasoner {
             ),
             output_pattern: Box::new(
                 |triples: &Vec<Triple>| {
-                    if let Object::Resource(object_type) = &triples[0].object {
-                        if let Object::Resource(object) = &triples[1].object {
-                            TurtleParser::triple(&format!("{} rdf:type {} .", object.to_string(), object_type.to_string())).unwrap()
-                        } else {
-                            Vec::new()
-                        }
+                    let predicate_a = &triples[0].predicate;
+                    let predicate_b = &triples[1].predicate;
+
+                    if predicate_a.to_string() == "rdfs:range" {
+                        let object_b = &triples[1].object.resource().unwrap();
+                        let object_a = &triples[0].object.resource().unwrap();
+
+                        TurtleParser::triple(&format!("{} rdf:type {} .", 
+                            object_b.to_string(), object_a.to_string()
+                        )).unwrap()
+                    } else if predicate_b.to_string() == "rdfs:range" {
+                        let object_a = &triples[0].object.resource().unwrap();
+                        let object_b = &triples[1].object.resource().unwrap();
+
+                        TurtleParser::triple(&format!("{} rdf:type {} .", 
+                            object_a.to_string(), object_b.to_string()
+                        )).unwrap()
                     } else {
-                        Vec::new()
+                        panic!("Invalid entailment.")
                     }
                 }
             )
@@ -116,13 +141,14 @@ impl BaseReasoner for RDFSReasoner {
             ),
             output_pattern: Box::new(
                 |triples: &Vec<Triple>| {
-                    let (s, _, o) = &triples[0].clone().into();
+                    let subject = &triples[0].subject;
+                    let object = &triples[0].object;
 
-                    let mut first = TurtleParser::triple(&format!("{} rdf:type rdfs:Resource .", s.to_string())).unwrap();
-                    let mut second = TurtleParser::triple(&format!("{} rdf:type rdfs:Resource .", o.to_string())).unwrap();
-                    first.append(&mut second);
-
-                    first
+                    TurtleParser::graph(&format!(
+                        "{} rdf:type rdfs:Resource .\
+                         {} rdf:type rdfs:Resource .",
+                        subject.to_string(), object.to_string()
+                    )).unwrap().triples
                 }
             )
         };
@@ -132,50 +158,37 @@ impl BaseReasoner for RDFSReasoner {
             output_length: 1,
             input_pattern: Box::new(
                 |triples: &Vec<Triple>| {
-                    let Relationship(predicate_a) = &triples[0].predicate;
-                    let Relationship(predicate_b) = &triples[1].predicate;
+                    let subject_a = &triples[0].subject;
+                    let subject_b = &triples[1].subject;
+
+                    let predicate_a = &triples[0].predicate;
+                    let predicate_b = &triples[1].predicate;
+
+                    let object_a = &triples[0].object;
+                    let object_b = &triples[1].object;
                     
-                    if predicate_a.to_string() == "rdfs:subPropertyOf" && predicate_a.to_string() == predicate_b.to_string() {
-                        if let Object::Resource(object_a) = &triples[0].object {
-                            let Resource(subject_b) = &triples[1].subject;
-
-                            object_a.to_string() == subject_b.to_string()
-                        } else if let Object::Resource(object_b) = &triples[1].object {
-                            let Resource(subject_a) = &triples[0].subject;
-
-                            object_b.to_string() == subject_a.to_string()
-                        } else {
-                            false
-                        }
-                    } else {
-                        false
-                    }
+                    (predicate_a.to_string() == "rdfs:subPropertyOf" && predicate_b.to_string() == "rdfs:subPropertyOf") &&
+                        (object_a.to_string() == subject_b.to_string() || object_b.to_string() == subject_a.to_string())
                 }
             ),
             output_pattern: Box::new(
                 |triples: &Vec<Triple>| {
-                    let Resource(subject_b) = &triples[1].subject;
+                    let subject_b = &triples[1].subject;
                     let object_a = &triples[0].object;
                     
-                    let Resource(subject_a) = &triples[0].subject;
+                    let subject_a = &triples[0].subject;
                     let object_b = &triples[1].object;
 
-                    if let Object::Resource(object_a) = object_a {
-                        if subject_b.to_string() == object_a.to_string() {
-                            let object_b = if let Object::Resource(o) = object_b { o } else { panic!() };
-
-                            TurtleParser::triple(&format!("{} rdfs:subPropertyOf {} .", subject_a.to_string(), object_b.to_string())).unwrap()
-                        } else if let Object::Resource(object_b) = object_b {
-                            if subject_a.to_string() == object_b.to_string() {
-                                TurtleParser::triple(&format!("{} rdfs:subPropertyOf {} .", subject_b.to_string(), object_a.to_string())).unwrap()
-                            } else {
-                                Vec::new()
-                            }
-                        } else {
-                            Vec::new()
-                        }
+                    if subject_b.to_string() == object_a.to_string() {
+                        TurtleParser::triple(&format!("{} rdfs:subPropertyOf {} .", 
+                            subject_a.to_string(), object_b.to_string()
+                        )).unwrap()
+                    } else if subject_a.to_string() == object_b.to_string() {
+                        TurtleParser::triple(&format!("{} rdfs:subPropertyOf {} .",
+                            subject_b.to_string(), object_a.to_string()
+                        )).unwrap()
                     } else {
-                        Vec::new()
+                        panic!("Invalid entailment.")
                     }
                 }
             )
@@ -186,24 +199,20 @@ impl BaseReasoner for RDFSReasoner {
             output_length: 1,
             input_pattern: Box::new(
                 |triples: &Vec<Triple>| {
-                    let (_, Relationship(predicate), object) = &triples[0].clone().into();
+                    let predicate = &triples[0].predicate;
+                    let object = &triples[0].object;
 
-                    if predicate.to_string() == "rdf:type" {
-                        if let Object::Resource(object) = object {
-                            object.to_string() == "rdf:Property"
-                        } else {
-                            false
-                        }
-                    } else {
-                        false
-                    }
+                    predicate.to_string() == "rdf:type" &&
+                        object.to_string() == "rdf:Property"
                 }
             ),
             output_pattern: Box::new(
                 |triples: &Vec<Triple>| {
-                    let Resource(subject) = &triples[0].subject;
+                    let subject = &triples[0].subject;
 
-                    TurtleParser::triple(&format!("{} rdfs:subPropertyOf {0} .", subject.to_string())).unwrap()
+                    TurtleParser::triple(&format!("{} rdfs:subPropertyOf {0} .", 
+                        subject.to_string()
+                    )).unwrap()
                 }
             )
         };
@@ -213,17 +222,22 @@ impl BaseReasoner for RDFSReasoner {
             output_length: 1,
             input_pattern: Box::new(
                 |triples: &Vec<Triple>| {
-                    let Relationship(predicate_a) = &triples[0].predicate;
-                    let Relationship(predicate_b) = &triples[1].predicate;
+                    let predicate_a = &triples[0].predicate;
+                    let predicate_b = &triples[1].predicate;
+
+                    let object_a = &triples[0].object;
+                    let object_b = &triples[1].object;
 
                     if predicate_a.to_string() == "rdfs:subPropertyOf" {
-                        let Resource(subject_a) = &triples[0].subject;
+                        let subject_a = &triples[0].subject;
 
-                        subject_a.to_string() == predicate_b.to_string()
+                        subject_a.to_string() == predicate_b.to_string() &&
+                            object_a.is_resource() && object_b.is_resource()
                     } else if predicate_b.to_string() == "rdfs:subPropertyOf" {
-                        let Resource(subject_b) = &triples[1].subject;
+                        let subject_b = &triples[1].subject;
 
-                        subject_b.to_string() == predicate_a.to_string()
+                        subject_b.to_string() == predicate_a.to_string() &&
+                            object_a.is_resource() && object_b.is_resource()
                     } else {
                         false
                     }
@@ -231,23 +245,26 @@ impl BaseReasoner for RDFSReasoner {
             ),
             output_pattern: Box::new(
                 |triples: &Vec<Triple>| {
-                    let Relationship(predicate_a) = &triples[0].predicate;
-                    let Relationship(predicate_b) = &triples[1].predicate;
+                    let predicate_a = &triples[0].predicate;
+                    let predicate_b = &triples[1].predicate;
+                    
+                    let object_a = &triples[0].object;
+                    let object_b = &triples[1].object;
 
                     if predicate_a.to_string() == "rdfs:subPropertyOf" {
-                        let object_a = if let Object::Resource(o) = &triples[0].object { o } else { panic!() };
-                        let object_b = if let Object::Resource(o) = &triples[1].object { o } else { panic!() };
-                        let Resource(subject_b) = &triples[1].subject;
+                        let subject_b = &triples[1].subject;
 
-                        TurtleParser::triple(&format!("{} {} {} .", subject_b.to_string(), object_a.to_string(), object_b.to_string())).unwrap()
+                        TurtleParser::triple(&format!("{} {} {} .", 
+                            subject_b.to_string(), object_a.to_string(), object_b.to_string()
+                        )).unwrap()
                     } else if predicate_b.to_string() == "rdfs:subProperyOf" {
-                        let object_a = if let Object::Resource(o) = &triples[0].object { o } else { panic!() };
-                        let object_b = if let Object::Resource(o) = &triples[1].object { o } else { panic!() };
-                        let Resource(subject_a) = &triples[0].subject;
+                        let subject_a = &triples[0].subject;
 
-                        TurtleParser::triple(&format!("{} {} {} .", subject_a.to_string(), object_b.to_string(), object_a.to_string())).unwrap()
+                        TurtleParser::triple(&format!("{} {} {} .", 
+                            subject_a.to_string(), object_b.to_string(), object_a.to_string()
+                        )).unwrap()
                     } else {
-                        Vec::new()
+                        panic!("Invalid entailment.")
                     }
                 }
             )
@@ -258,24 +275,20 @@ impl BaseReasoner for RDFSReasoner {
             output_length: 1,
             input_pattern: Box::new(
                 |triples: &Vec<Triple>| {
-                    let (_, Relationship(predicate), object) = &triples[0].clone().into();
+                    let predicate = &triples[0].predicate;
+                    let object = &triples[0].object;
 
-                    if predicate.to_string() == "rdf:type" {
-                        if let Object::Resource(object) = object {
-                            object.to_string() == "rdfs:Class"
-                        } else {
-                            false
-                        }
-                    } else {
-                        false
-                    }
+                    predicate.to_string() == "rdf:type" &&
+                        object.to_string() == "rdfs:Class"
                 }
             ),
             output_pattern: Box::new(
                 |triples: &Vec<Triple>| {
-                    let Resource(subject) = &triples[0].subject;
+                    let subject = &triples[0].subject;
 
-                    TurtleParser::triple(&format!("{} rdfs:subClassOf rdfs:Resource .", subject.to_string())).unwrap()
+                    TurtleParser::triple(&format!("{} rdfs:subClassOf rdfs:Resource .", 
+                        subject.to_string()
+                    )).unwrap()
                 }
             )
         };
@@ -285,25 +298,19 @@ impl BaseReasoner for RDFSReasoner {
             output_length: 1,
             input_pattern: Box::new(
                 |triples: &Vec<Triple>| {
-                    let Relationship(predicate_a) = &triples[0].predicate;
-                    let Relationship(predicate_b) = &triples[1].predicate;
+                    let predicate_a = &triples[0].predicate;
+                    let predicate_b = &triples[1].predicate;
 
                     if predicate_a.to_string() == "rdfs:subClassOf" && predicate_b.to_string() == "rdf:type" {
-                        let Resource(subject_a) = &triples[0].subject;
+                        let subject_a = &triples[0].subject;
+                        let object_b = &triples[1].object;
 
-                        if let Object::Resource(object_b) = &triples[1].object {
-                            subject_a.to_string() == object_b.to_string()
-                        } else {
-                            false
-                        }
+                        subject_a.to_string() == object_b.to_string()
                     } else if predicate_b.to_string() == "rdfs:subClassOf" && predicate_a.to_string() == "rdf:type" {
-                        let Resource(subject_b) = &triples[1].subject;
+                        let subject_b = &triples[1].subject;
+                        let object_a = &triples[0].object;
 
-                        if let Object::Resource(object_a) = &triples[0].object {
-                            subject_b.to_string() == object_a.to_string()
-                        } else {
-                            false
-                        }
+                        subject_b.to_string() == object_a.to_string()
                     } else {
                         false
                     }
@@ -311,21 +318,25 @@ impl BaseReasoner for RDFSReasoner {
             ),
             output_pattern: Box::new(
                 |triples: &Vec<Triple>| {
-                    let Relationship(predicate_a) = &triples[0].predicate;
-                    let Relationship(predicate_b) = &triples[1].predicate;
+                    let predicate_a = &triples[0].predicate;
+                    let predicate_b = &triples[1].predicate;
 
                     if predicate_a.to_string() == "rdfs:subClassOf" {
-                        let object_a = if let Object::Resource(o) = &triples[0].object { o } else { panic!() };
-                        let Resource(subject_b) = &triples[1].subject;
+                        let object_a = &triples[0].object;
+                        let subject_b = &triples[1].subject;
 
-                        TurtleParser::triple(&format!("{} rdf:type {} .", subject_b.to_string(), object_a.to_string())).unwrap()
+                        TurtleParser::triple(&format!("{} rdf:type {} .", 
+                            subject_b.to_string(), object_a.to_string()
+                        )).unwrap()
                     } else if predicate_b.to_string() == "rdfs:subClassOf" {
-                        let object_b = if let Object::Resource(o) = &triples[1].object { o } else { panic!() };
-                        let Resource(subject_a) = &triples[0].subject;
+                        let object_b = &triples[1].object;
+                        let subject_a = &triples[0].subject;
 
-                        TurtleParser::triple(&format!("{} rdf:type {} .", subject_a.to_string(), object_b.to_string())).unwrap()
+                        TurtleParser::triple(&format!("{} rdf:type {} .", 
+                            subject_a.to_string(), object_b.to_string()
+                        )).unwrap()
                     } else {
-                        Vec::new()
+                        panic!("Invalid entailment.")
                     }
                 }
             )
@@ -336,24 +347,20 @@ impl BaseReasoner for RDFSReasoner {
             output_length: 1,
             input_pattern: Box::new(
                 |triples: &Vec<Triple>| {
-                    let (_, Relationship(predicate), object) = &triples[0].clone().into();
+                    let predicate = &triples[0].predicate;
+                    let object = &triples[0].object;
 
-                    if predicate.to_string() == "rdf:type" {
-                        if let Object::Resource(object) = object {
-                            object.to_string() == "rdfs:Class"
-                        } else {
-                            false
-                        }
-                    } else {
-                        false
-                    }
+                    predicate.to_string() == "rdf:type" &&
+                        object.to_string() == "rdfs:Class"
                 }
             ),
             output_pattern: Box::new(
                 |triples: &Vec<Triple>| {
-                    let Resource(subject) = &triples[0].subject;
+                    let subject = &triples[0].subject;
 
-                    TurtleParser::triple(&format!("{} rdfs:subClassOf {0} .", subject.to_string())).unwrap()
+                    TurtleParser::triple(&format!("{} rdfs:subClassOf {0} .", 
+                        subject.to_string()
+                    )).unwrap()
                 }
             )
         };
@@ -363,50 +370,37 @@ impl BaseReasoner for RDFSReasoner {
             output_length: 1,
             input_pattern: Box::new(
                 |triples: &Vec<Triple>| {
-                    let Relationship(predicate_a) = &triples[0].predicate;
-                    let Relationship(predicate_b) = &triples[1].predicate;
+                    let subject_a = &triples[0].subject;
+                    let subject_b = &triples[1].subject;
                     
-                    if predicate_a.to_string() == "rdfs:subClassOf" && predicate_a.to_string() == predicate_b.to_string() {
-                        if let Object::Resource(object_a) = &triples[0].object {
-                            let Resource(subject_b) = &triples[1].subject;
-
-                            object_a.to_string() == subject_b.to_string()
-                        } else if let Object::Resource(object_b) = &triples[1].object {
-                            let Resource(subject_a) = &triples[0].subject;
-
-                            object_b.to_string() == subject_a.to_string()
-                        } else {
-                            false
-                        }
-                    } else {
-                        false
-                    }
+                    let predicate_a = &triples[0].predicate;
+                    let predicate_b = &triples[1].predicate;
+                    
+                    let object_a = &triples[0].object;
+                    let object_b = &triples[1].object;
+                    
+                    (predicate_a.to_string() == "rdfs:subClassOf" && predicate_a.to_string() == predicate_b.to_string()) &&
+                        (object_a.to_string() == subject_b.to_string() || object_b.to_string() == subject_a.to_string())
                 }
             ),
             output_pattern: Box::new(
                 |triples: &Vec<Triple>| {
-                    let Resource(subject_b) = &triples[1].subject;
+                    let subject_b = &triples[1].subject;
                     let object_a = &triples[0].object;
                     
-                    let Resource(subject_a) = &triples[0].subject;
+                    let subject_a = &triples[0].subject;
                     let object_b = &triples[1].object;
 
-                    if let Object::Resource(object_a) = object_a {
-                        if subject_b.to_string() == object_a.to_string() {
-                            let object_b = if let Object::Resource(o) = object_b { o } else { panic!() };
-
-                            TurtleParser::triple(&format!("{} rdfs:subClassOf {} .", subject_a.to_string(), object_b.to_string())).unwrap()
-                        } else if let Object::Resource(object_b) = object_b {
-                            if subject_a.to_string() == object_b.to_string() {
-                                TurtleParser::triple(&format!("{} rdfs:subClassOf {} .", subject_b.to_string(), object_a.to_string())).unwrap()
-                            } else {
-                                Vec::new()
-                            }
-                        } else {
-                            Vec::new()
-                        }
+                    if subject_b.to_string() == object_a.to_string() {
+                        TurtleParser::triple(&format!("{} rdfs:subClassOf {} .", 
+                            subject_a.to_string(), object_b.to_string()
+                        )).unwrap()
+                    } else if subject_a.to_string() == object_b.to_string() {
+                        TurtleParser::triple(&format!("{} rdfs:subClassOf {} .", 
+                            subject_b.to_string(), object_a.to_string()
+                        )).unwrap()
                     } else {
-                        Vec::new()
+                        panic!("Invalid entailment.")
                     }
                 }
             )
@@ -417,24 +411,20 @@ impl BaseReasoner for RDFSReasoner {
             output_length: 1,
             input_pattern: Box::new(
                 |triples: &Vec<Triple>| {
-                    let (_, Relationship(predicate), object) = &triples[0].clone().into();
+                    let predicate = &triples[0].predicate;
+                    let object = &triples[0].object;
 
-                    if predicate.to_string() == "rdf:type" {
-                        if let Object::Resource(object) = object {
-                            object.to_string() == "rdfs:ContainerMembershipProperty"
-                        } else {
-                            false
-                        }
-                    } else {
-                        false
-                    }
+                    predicate.to_string() == "rdf:type" &&
+                        object.to_string() == "rdfs:ContainerMembershipProperty"
                 }
             ),
             output_pattern: Box::new(
                 |triples: &Vec<Triple>| {
-                    let Resource(subject) = &triples[0].subject;
+                    let subject = &triples[0].subject;
 
-                    TurtleParser::triple(&format!("{} rdfs:subPropertyOf rdfs:member .", subject.to_string())).unwrap()
+                    TurtleParser::triple(&format!("{} rdfs:subPropertyOf rdfs:member .", 
+                        subject.to_string()
+                    )).unwrap()
                 }
             )
         };
@@ -444,24 +434,20 @@ impl BaseReasoner for RDFSReasoner {
             output_length: 1,
             input_pattern: Box::new(
                 |triples: &Vec<Triple>| {
-                    let (_, Relationship(predicate), object) = &triples[0].clone().into();
+                    let predicate = &triples[0].predicate;
+                    let object = &triples[0].object;
 
-                    if predicate.to_string() == "rdf:type" {
-                        if let Object::Resource(object) = object {
-                            object.to_string() == "rdfs:Datatype"
-                        } else {
-                            false
-                        }
-                    } else {
-                        false
-                    }
+                    predicate.to_string() == "rdf:type" &&
+                        object.to_string() == "rdfs:Datatype"
                 }
             ),
             output_pattern: Box::new(
                 |triples: &Vec<Triple>| {
-                    let Resource(subject) = &triples[0].subject;
+                    let subject = &triples[0].subject;
 
-                    TurtleParser::triple(&format!("{} rdfs:subClassOf rdfs:Literal .", subject.to_string())).unwrap()
+                    TurtleParser::triple(&format!("{} rdfs:subClassOf rdfs:Literal .", 
+                        subject.to_string()
+                    )).unwrap()
                 }
             )
         };

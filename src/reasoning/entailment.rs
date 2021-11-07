@@ -22,7 +22,8 @@ impl Entailment {
                 triples
             } else {
                 dbg!(&input, &triples);
-                panic!("Error applying entailment rule: number of output triples: {} did not match declared output length: {}", triples.len(), self.output_length)
+                panic!("Error applying entailment rule: number of output triples: \
+                       {} did not match declared output length: {}", triples.len(), self.output_length)
             }
         } else {
             Vec::new()

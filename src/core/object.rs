@@ -37,6 +37,36 @@ pub enum Object {
     Resource(Uri)
 }
 
+impl Object {
+    pub fn is_literal(&self) -> bool {
+        match &self {
+            Object::Literal(_) => true,
+            _ => false
+        }
+    }
+    
+    pub fn is_resource(&self) -> bool {
+        match &self {
+            Object::Resource(_) => true,
+            _ => false
+        }
+    }
+
+    pub fn literal(&self) -> Option<&Literal> {
+        match &self {
+            Object::Literal(l) => Some(&l),
+            _ => None
+        }
+    }
+    
+    pub fn resource(&self) -> Option<&Uri> {
+        match &self {
+            Object::Resource(r) => Some(&r),
+            _ => None
+        }
+    }
+}
+
 impl ToString for Object {
     fn to_string(&self) -> String {
         match &self {
