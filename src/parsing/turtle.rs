@@ -616,7 +616,8 @@ impl BaseParser for TurtleParser {
             .collect();
 
         let triples: Vec<Triple> = full_triples.into_iter().flat_map(|t| {
-            // Trim leading and trainling whitespace
+            // Trim leading and trailing whitespace
+            println!("{:?}", &t);
             Self::triple(t.trim()).unwrap()
         }).collect();
 

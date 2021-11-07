@@ -35,7 +35,7 @@ pub mod matches {
     use lazy_static::lazy_static;
 
     lazy_static! {
-        pub static ref FULL_URL: Regex = Regex::new(r"^<(http://(?:[\w\d\-_]{2,}\.)+[a-z]{2,}/(?:[\w\d\-_/]+)*[#/])([\w\d\-_]+)>").unwrap();
+        pub static ref FULL_URL: Regex = Regex::new(r"^<?(http://(?:[\w\d\-_]{2,}\.)+[a-z]{2,}/(?:[\w\d\-_/]+)*[#/])([\w\d\-_]+)>?").unwrap();
         pub static ref RELATIVE_URL: Regex = Regex::new(r"^<#?([\w\d\-_]+)>").unwrap();
         pub static ref PREFIXED: Regex = Regex::new(r"^([\w\d\-_]+:)([\w\d\-_]+)").unwrap();
         pub static ref EMPTY_PREFIX: Regex = Regex::new(r"^:([\w\d\-_]+)").unwrap();

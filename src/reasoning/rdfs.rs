@@ -88,18 +88,19 @@ impl BaseReasoner for RDFSReasoner {
                     let predicate_a = &triples[0].predicate;
                     let predicate_b = &triples[1].predicate;
 
+                    let object_a = &triples[0].object;
+                    let object_b = &triples[1].object;
+                    
                     if predicate_a.to_string() == "rdfs:range" {
                         let subject_a = &triples[0].subject;
-                        let object_a = &triples[0].object;
 
                         predicate_b.to_string() == subject_a.to_string() &&
-                            object_a.is_resource()
+                            object_a.is_resource() && object_b.is_resource()
                     } else if predicate_b.to_string() == "rdfs:range" {
                         let subject_b = &triples[1].subject;
-                        let object_b = &triples[1].object;
 
                         predicate_a.to_string() == subject_b.to_string() &&
-                            object_b.is_resource()
+                            object_a.is_resource() && object_b.is_resource()
                     } else {
                         false
                     }
@@ -131,24 +132,40 @@ impl BaseReasoner for RDFSReasoner {
             )
         };
         
-        let rdfs4 = Entailment {
+        let rdfs4a = Entailment {
             input_length: 1,
-            output_length: 2,
+            output_length: 1,
             input_pattern: Box::new(
-                |_| {
-                    true
+                |triples: &Vec<Triple>| {
+                    let subject = &triples[0].subject;
+
+                    subject.to_string() != "rdfs:Resource"
                 }
             ),
             output_pattern: Box::new(
                 |triples: &Vec<Triple>| {
                     let subject = &triples[0].subject;
+                    
+                    TurtleParser::triple(&format!("{} rdf:type rdfs:Resource .", subject.to_string())).unwrap()
+                }
+            )
+        };
+        
+        let rdfs4b = Entailment {
+            input_length: 1,
+            output_length: 1,
+            input_pattern: Box::new(
+                |triples: &Vec<Triple>| {
                     let object = &triples[0].object;
 
-                    TurtleParser::graph(&format!(
-                        "{} rdf:type rdfs:Resource .\
-                         {} rdf:type rdfs:Resource .",
-                        subject.to_string(), object.to_string()
-                    )).unwrap().triples
+                    object.is_resource() && object.to_string() != "rdfs:Resource"
+                }
+            ),
+            output_pattern: Box::new(
+                |triples: &Vec<Triple>| {
+                    let object = &triples[0].object;
+                    
+                    TurtleParser::triple(&format!("{} rdf:type rdfs:Resource .", object.to_string())).unwrap()
                 }
             )
         };
@@ -454,10 +471,10 @@ impl BaseReasoner for RDFSReasoner {
 
         vec![
             rdfs1 , rdfs2 , rdfs3 ,
-            rdfs4 , rdfs5 , rdfs6 ,
-            rdfs7 , rdfs8 , rdfs9 ,
-            rdfs10, rdfs11, rdfs12,
-            rdfs13
+            rdfs4a, rdfs4b, rdfs5 ,
+            rdfs6 , rdfs7 , rdfs8 ,
+            rdfs9 , rdfs10, rdfs11,
+            rdfs12, rdfs13
         ]
     }
 }

@@ -158,12 +158,11 @@ fn rdfs_reasoning() -> TestReturn {
 
 #[test]
 fn can_apply_entailment_to_graph() -> TestReturn {
-    let graph = TurtleParser::graph("ex:Cole rdf:type foaf:Person .\
-                                     ex:Eat rdfs:range foaf:Person ;\
-                                         rdfs:domain ex:Food .\
-                                     ex:Cole ex:Eat ex:Apple .")?;
+    let graph = TurtleParser::graph("ex:employer rdfs:domain foaf:Person ;\
+                                        rdfs:range foaf:Organization .
+                                    ex:John ex:employer ex:Company .")?;
 
-    let inferred = RDFSReasoner::get_inferred_triples(graph.triples, 2);
+    let inferred = RDFSReasoner::get_inferred_triples(graph.triples, 1);
     dbg!(inferred);
 
     assert!(false);
