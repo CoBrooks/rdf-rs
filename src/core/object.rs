@@ -1,6 +1,6 @@
 use crate::core::{ Uri, uri::UriType };
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Literal {
     pub value: String,
     pub datatype: Uri,
@@ -31,7 +31,7 @@ impl From<&str> for Literal {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Object {
     Literal(Literal),
     Resource(Uri)

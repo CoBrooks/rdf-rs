@@ -65,3 +65,11 @@ pub mod reasoning {
     mod tests;
 }
 
+pub mod querying {
+    mod query;
+
+    pub use query::QueryBuilder;
+
+    mod tests;
+}
+

@@ -1,6 +1,6 @@
 use crate::core::Uri;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Relationship(pub Uri);
 
 impl From<Uri> for Relationship {

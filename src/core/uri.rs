@@ -1,4 +1,4 @@
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum UriType {
     Full,
     Relative,
@@ -7,7 +7,7 @@ pub enum UriType {
     BlankNode
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Uri {
     pub prefix: String,
     pub name: String,

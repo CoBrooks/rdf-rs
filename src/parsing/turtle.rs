@@ -402,7 +402,7 @@ impl BaseParser for TurtleParser {
             ("".into(), caps[1].to_string(), UriType::PrefixedWithBase)
         // If u is the identity relationship
         } else if u == "a" {
-            ("http://www.w3.org/1999/02/22-rdf-syntax-ns/".into(), "type".into(), UriType::Full)
+            ("rdf:".into(), "type".into(), UriType::Full)
         } else {
             return Err(ParserError(format!("Invalid URI: {}", u)));
         };
@@ -617,7 +617,6 @@ impl BaseParser for TurtleParser {
 
         let triples: Vec<Triple> = full_triples.into_iter().flat_map(|t| {
             // Trim leading and trailing whitespace
-            println!("{:?}", &t);
             Self::triple(t.trim()).unwrap()
         }).collect();
 
