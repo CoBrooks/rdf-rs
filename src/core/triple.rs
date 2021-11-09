@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::hash::Hash;
 
 use crate::core::{
     Resource,
@@ -7,7 +8,7 @@ use crate::core::{
     uri::UriType
 };
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, Eq, PartialOrd, Ord)]
 /// An RDF triple. Typically constructed from a ([`Resource`], [`Relationship`], [`Object`]) tuple with
 /// `.into()`.
 pub struct Triple {
@@ -128,6 +129,18 @@ impl ToString for Triple {
 impl std::fmt::Debug for Triple {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.to_string())
+    }
+}
+
+impl PartialEq for Triple {
+    fn eq(&self, other: &Self) -> bool {
+        self.to_string().eq(&other.to_string())
+    }
+}
+
+impl Hash for Triple {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.to_string().hash(state)
     }
 }
 
