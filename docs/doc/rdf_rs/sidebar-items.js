@@ -1,1 +1,0 @@
-initSidebarItems({"mod":[["core","Contains all of the core rdf data structures, such as `Uri` and `Triple`."],["parsing","Contains the currently-implemented parsers and a base `RDFParser` trait allowing  their creation"]]});

@@ -1,75 +1,159 @@
-//! This crate provides the tools necessary to parse RDF graphs. It currently contains a
-//! full (with very few exceptions) [`Turtle`](http://www.w3.org/TR/turtle/) parser that can parse arbitrary 
-//! URIs, Triples, and Graphs (see [`TurtleParser`](crate::parsing::TurtleParser) for example usage).
-//!
-//! # Goals
-//!
-//! * To provide a simple and easy-to-use RDF parsing API.
-//! * To act as an inference engine capable of filling a graph with all the triples that can be
-//! inferred from the parsed data.
-//!
-//! # Usage
-//!
-//! This crate is not on [crates.io](https://crates.io) and thus the `Cargo.toml` entry looks like
-//! the following:
-//!
-//! ```
-//! [dependencies]
-//! rdf-rs = { git = "https://github.com/CoBrooks/rdf-rs" }
-//! ```
-//!
-//! [`TurtleParser`]: crate::parsing::TurtleParser
+#[macro_use] extern crate lazy_static;
+use std::collections::HashMap;
 
+use regex::Regex;
 
-/// Contains all of the core rdf data structures, such as [`Uri`](crate::core::Uri) and
-/// [`Triple`](crate::core::Triple).
-pub mod core {
-    pub(crate) mod uri;
-    mod resource;
-    mod relationship;
-    pub(crate) mod object;
-    mod triple;
-    mod graph;
-
-    pub use uri::Uri;
-    pub use resource::Resource;
-    pub use relationship::Relationship;
-    pub use object::{ Object, Literal };
-    pub use triple::Triple;
-    pub use graph::Graph;
+#[derive(Debug, PartialEq, Eq)]
+pub enum Error {
+    NoneOrEmptyParam(String),
+    ParseError(String),
+    NotAbsoluteURI,
+    BaseIsNotAbsolute,
+    PrefixIsNotAbsolute,
+    Unimplemented,
 }
 
-/// Contains the currently-implemented parsers and a base [`RDFParser`](crate::parsing::RDFParser) trait allowing 
-/// their creation
-pub mod parsing {
-    mod base;
-    mod turtle;
-
-    pub use base::{ ParserError, Parsed, BaseParser };
-    pub use turtle::TurtleParser;
-
-    mod tests;
+#[derive(Debug, Hash, PartialEq, Eq)]
+pub enum URI {
+    Absolute(String),
+    Prefixed(String, String)
 }
 
-/// Contains the currently-implemented reasoner and a base
-/// [`RDFReasoner`](crate::reasoning::RDFReasoner) trait allowing their creation.
-pub mod reasoning {
-    mod base;
-    mod entailment;
-    mod rdfs;
+type Result<T> = std::result::Result<T, Error>;
 
-    pub use base::BaseReasoner;
-    pub use entailment::Entailment;
-    pub use rdfs::RDFSReasoner;
-
-    mod tests;
+lazy_static! {
+    static ref URI_ABSOLUTE_REGEX: Regex = Regex::new(r"<(?:http://|https://)\S+[/#]\S+>").unwrap();
+    static ref URI_PREFIXED_REGEX: Regex = Regex::new(r"\w+:\w+").unwrap();
 }
 
-pub mod querying {
-    mod query;
+impl URI {
+    pub fn parse(s: &str) -> Result<URI> {
+        URI::parse_absolute(s)
+            .or_else(|| URI::parse_prefixed(s))
+            .ok_or_else(|| Error::ParseError(format!("{s:?} is not a valid URI")))
+    }
 
-    pub use query::QueryBuilder;
+    pub fn new_absolute(uri: &str) -> Result<URI> {
+        if uri.is_empty() {
+            Err(
+                Error::NoneOrEmptyParam(stringify!(uri).to_string())
+            )
+        } else if URI::is_absolute(uri) {
+            Ok(URI::Absolute(uri.to_string()))
+        } else {
+            Err(Error::NotAbsoluteURI)
+        }
+    }
 
-    mod tests;
+    pub fn new_prefixed(prefix: &str, resource: &str) -> Result<Self> {
+        Ok(
+            Self::Prefixed(
+                prefix.to_string(),
+                resource.to_string()
+            )
+        )
+    }
+
+    fn parse_absolute(input: &str) -> Option<URI> {
+        if URI_ABSOLUTE_REGEX.is_match(input) {
+            Some(URI::Absolute(input.to_string()))
+        } else {
+            None
+        }
+    }
+
+    fn is_absolute(input: &str) -> bool {
+        URI_ABSOLUTE_REGEX.is_match(input)
+    }
+    
+    fn parse_prefixed(input: &str) -> Option<URI> {
+        if URI_PREFIXED_REGEX.is_match(input) {
+            let parts: Vec<&str> = input.split(':').collect();
+
+            if let [prefix, resource] = parts.as_slice() {
+                Some(URI::Prefixed(prefix.to_string(), resource.to_string()))
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
 }
 
+#[derive(Debug, Hash, PartialEq, Eq)]
+pub struct Triple {
+    pub subject: URI,
+    pub predicate: URI,
+    pub object: URI
+}
+
+impl Triple {
+    pub fn parse(s: &str) -> Result<Triple> {
+        let parts: Vec<&str> = s.split([' ', ';']).collect();
+
+        if let [subject, predicate, object, _] = parts.as_slice() {
+            let subject = URI::parse(subject)?;
+            let predicate = URI::parse(predicate)?;
+            let object = URI::parse(object)?;
+
+            Ok(Triple {
+                subject,
+                predicate,
+                object
+            })
+        } else {
+            Err(Error::ParseError(
+                format!("{s:?} is not a triple")
+            ))
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct Store {
+    base: URI,
+    prefixes: HashMap<String, URI>,
+    triples: Vec<Triple>
+}
+
+impl Store {
+    pub fn new(base: Option<URI>, prefixes: Option<HashMap<String, URI>>) -> Result<Store> {
+        let base = base.unwrap_or(URI::parse("<http://example.com/graph#>")?);
+        let prefixes = prefixes.unwrap_or_default();
+
+        if let URI::Prefixed(_, _) = base {
+            return Err(Error::BaseIsNotAbsolute);
+        }
+
+        Ok(Store {
+            base,
+            prefixes,
+            triples: Vec::new()
+        })
+    }
+
+    pub fn add_prefix(&mut self, prefix: &str, uri: URI) -> Result<()> {
+        if let URI::Absolute(_) = uri {
+            self.prefixes.insert(prefix.to_string(), uri);
+
+            Ok(())
+        } else {
+            Err(Error::PrefixIsNotAbsolute)
+        }
+    }
+
+    pub fn contains(&self, triple: &Triple) -> bool {
+        todo!()
+    }
+
+    pub fn add_triple(&mut self, triple: Triple) {
+        if !self.contains(&triple) {
+            self.triples.push(triple);
+        }
+    }
+
+    pub fn canonicalize_triple(&self, triple: &Triple) -> Result<Triple> {
+        Err(Error::Unimplemented)
+    }
+}

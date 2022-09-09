@@ -1,11 +1,16 @@
 [package]
 name = "rdf-rs"
-version = "0.1.0"
-edition = "2018"
+version = "0.0.1"
+edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[[test]]
+name = "wright"
+path = "src/test.rs"
+harness = false
 
 [dependencies]
-regex = "1"
-lazy_static = "1"
-if_chain = "1"
+regex = "1.6"
+lazy_static = "1.4"
+
+[dev-dependencies]
+wright = { path = "../wright" }
