@@ -3,76 +3,51 @@ use wright::*;
 fn main() {
     describe("rdf_rs", || {
         describe("URI", || {
-            use rdf_rs::URI;
+            use rdf_rs::{ Error, Namespace, URI };
 
-            describe("::new_absolute(uri)", || {
-                it("should create a new absolute URI", || {
-                    let uri = URI::new_absolute("<http://xmlns.com/foaf/0.1/Person>");
+            describe("::new", || {
+                it("should create new absolute URIs", || {
+                    let uri = URI::parse("<http://graph.example.com/firstName>");
 
-                    expect(&uri).to().be().ok()
-                });
-                
-                it("should fail if input is empty", || {
-                    let uri = URI::new_absolute("");
+                    let expected = URI::new(
+                        Namespace::Absolute("http://graph.example.com/".to_string()),
+                        "firstName"
+                    );
 
-                    expect(&uri).to().be().err().and(
-                        expect(&uri).when().err_unwrapped().to().equal(
-                            rdf_rs::Error::NoneOrEmptyParam("uri".to_string())
-                        )
+                    expect(&uri).to().be().ok().and(
+                        expect(&uri).when().unwrapped().to().equal(expected)
                     )
                 });
                 
-                it("should fail when given invalid URI", || {
-                    let uri = URI::new_absolute("foo:bar");
+                it("should create new prefixed URIs", || {
+                    let uri = URI::parse("ex:firstName");
 
-                    expect(&uri).to().be().err().and(
-                        expect(&uri).when().err_unwrapped().to().equal(
-                            rdf_rs::Error::NotAbsoluteURI
-                        )
+                    let expected = URI::new(
+                        Namespace::Prefix("ex".to_string()),
+                        "firstName"
+                    );
+
+                    expect(&uri).to().be().ok().and(
+                        expect(&uri).when().unwrapped().to().equal(expected)
                     )
                 });
-            });
-            
-            describe("::new_prefixed(prefix, resource)", || {
-                it("should create a new prefixed URI", || {
-                    let uri = URI::new_prefixed("foaf", "Person");
-
-                    expect(&uri).to().be().ok()
-                });
-            });
-            
-            describe("::parse(input)", || {
-                it("should return an absolute URI when input = <http://xmlns.com/foaf/0.1/Person>", || {
-                    let uri = URI::parse("<http://xmlns.com/foaf/0.1/Person>");
-
-                    expect(&uri).to().be().ok()
-                    // TODO: expect URI::Absolute
-                });
                 
-                it("should return a prefixed URI when input = foaf:Person", || {
-                    let uri = URI::parse("foaf:Person");
+                it("should error with invalid input", || {
+                    let s = "foobar";
 
-                    expect(&uri).to().be().ok()
-                    // TODO: expect URI::Prefixed
-                });
-                
-                it("should fail when given invalid URI", || {
-                    let uri = URI::parse("Hello, World!");
+                    let uri = URI::parse(s);
 
                     expect(&uri).to().be().err().and(
                         expect(&uri).when().err_unwrapped().to().equal(
-                            rdf_rs::Error::ParseError(
-                                r#""Hello, World!" is not a valid URI"#.to_string()
-                            )
+                            Error::NotAValidURI
                         )
                     )
                 });
             });
-
         });
         
         describe("Triple", || {
-            use rdf_rs::Triple;
+            use rdf_rs::{ Triple, URI };
             
             describe("::parse(input)", || {
                 it("should parse a string into a new Triple", || {
@@ -80,57 +55,55 @@ fn main() {
 
                     let triple = Triple::parse(input);
 
-                    expect(&triple).to().be().ok()
+                    let subject = URI::parse("ex:Cole").unwrap();
+                    let predicate = URI::parse("rdf:type").unwrap();
+                    let object = URI::parse("<http://xmlns.com/foaf/0.1/Person>").unwrap();
+
+                    let expected = Triple::new(subject, predicate, object);
+
+                    expect(&triple).to().be().ok()/*.and(
+                        expect(&triple).when().unwrapped().to().equal(expected)
+                    )*/
                 });
             });
         });
         
         describe("Store", || {
-            use rdf_rs::{ Store, Triple, URI };
+            use std::collections::HashMap;
+            use rdf_rs::{ Error, Namespace, Store, Triple };
 
-            describe("::new(base, prefixes)", || {
-                it("should initialize a new store without base", || {
-                    let store = Store::new(None, None);
+            // let base = Namespace::Absolute("http://graph.example.com/".to_string());
+            let prefixes: HashMap<String, Namespace> = [
+                ("ex".to_string(), Namespace::Absolute("http://graph.example.com/".to_string())),
+                ("rdf".to_string(), Namespace::Absolute("http://www.w3.org/1999/02/22-rdf-syntax-ns#".to_string())),
+                ("foaf".to_string(), Namespace::Absolute("http://xmlns.com/foaf/0.1/".to_string()))
+            ].into();
 
-                    expect(&store).to().be().ok()
+            describe(".add_triple", || {
+                let mut store: Store = Store::new(None, Some(prefixes.clone()));
+
+                let triple = Triple::parse("ex:Cole rdf:type foaf:Person .").unwrap();
+                let result = store.add_triple(triple.clone());
+
+                it("should add a new triple to the store", || {
+                    let contains_new_triple = store.contains(&triple);
+
+                    expect(&result).to().be().ok().and(
+                        expect(&contains_new_triple).when().unwrapped().to().equal(true)
+                    )
                 });
                 
-                it("should initialize a new store with base and prefixes", || {
-                    let base = URI::parse("<http://graph.example.com/>").unwrap();
-                    let store = Store::new(Some(base), None);
+                let triple = Triple::parse("ex:Cole foo:bar _:asdf .").unwrap();
+                let result = store.add_triple(triple);
 
-                    expect(&store).to().be().ok()
+                it("should fail to add an invalid triple", || {
+                    expect(&result).to().be().err().and(
+                        expect(&result).when().err_unwrapped().to().equal(
+                            Error::UnknownPrefix("foo".to_string())
+                        )
+                    )
                 });
             });
-
-            describe(".canonicalize_triple(triple)", || {
-                let mut store = Store::new(None, None).unwrap();
-                let ex = URI::parse("<http://graph.example.com/People#>").unwrap();
-                let rdf = URI::parse("<http://www.w3.org/1999/02/22-rdf-syntax-ns#>").unwrap();
-                let foaf = URI::parse("<http://xmlns.com/foaf/0.1/>").unwrap();
-
-                store.add_prefix("ex", ex).unwrap();
-                store.add_prefix("rdf", rdf).unwrap();
-                store.add_prefix("foaf", foaf).unwrap();
-
-                it("should canonicalize all of the URIs in a triple", || {
-                    let pre_triple = Triple::parse("ex:Cole rdf:type foaf:Person .").unwrap();
-
-                    let canon_triple = store.canonicalize_triple(&pre_triple);
-
-                    expect(&canon_triple).to().be().ok()
-                });
-            });
-
-            // describe(".contains(triple)", || {
-            //     it("should check for canonical triples", || {
-
-            //     });
-            //     
-            //     it("should check for prefixed triples", || {
-
-            //     });
-            // });
         });
     });
 }
